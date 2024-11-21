@@ -5,24 +5,51 @@ const regd_users = express.Router();
 
 let users = [];
 
-const isValid = (username)=>{ //returns boolean
-//write code to check is the username is valid
+const isValid = (username) => {
+  return (users.find(user => user.username === username));
 }
-
-const authenticatedUser = (username,password)=>{ //returns boolean
-//write code to check if username and password match the one we have in records.
+const authenticatedUser = (username, password) => { //returns boolean
+  let validUser = users.find(user => {
+    user.username === username && user.password === password
+  });
+  return validUser;
 }
 
 //only registered users can login
-regd_users.post("/login", (req,res) => {
-  //Write your code here
-  return res.status(300).json({message: "Yet to be implemented"});
+regd_users.post("/login", (req, res) => {
+  const username = req.body.username;
+  const password = req.body.password;
+  if (!username || !password) {
+    res.status(404).json({ message: "Error logging in" });
+    return;
+  }
+  if (authenticatedUser) {
+    let accessToken = jwt.sign({
+      data: password
+    }, 'access', { expiresIn: 60 * 60 });
+    req.session.authorization = { accessToken, username };
+    return res.status(200).send("Login successfully!");
+  } else return res.status(208).json({ message: "Invalid login. Please check username and password" });
+
+
 });
 
-// Add a book review
-regd_users.put("/auth/review/:isbn", (req, res) => {
+
+regd_users.delete("/auth/review/:title", (req, res) => {
   //Write your code here
-  return res.status(300).json({message: "Yet to be implemented"});
+  const title = req.params.title;
+  const username = req.session.authorization.username;
+  const existingBook = Object.values(books).find(b => b.title === title);
+  if (!existingBook)
+    return res.status(404).send("No book found");
+
+  const existingReview = Object.values(books).find(book => username in book.reviews);
+  if (existingReview) {
+    delete existingReview.reviews[username];
+    return res.status(200).send(`The review of ${username} is deleted.`);
+  } else {
+    return res.status(208).json(`No review is found with the ${username}.`)
+  }
 });
 
 module.exports.authenticated = regd_users;
